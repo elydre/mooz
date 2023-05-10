@@ -23,6 +23,7 @@
 #define HALF_RESY (RESY / 2)
 
 #define set_pixel(x, y, color) gui_screen_buffer[(y) * RESX + (x)] = (color)
+#define float_part(x) (x - (int) x)
 
 uint8_t MAP[] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6,
@@ -40,6 +41,16 @@ uint8_t MAP[] = {
     2, 7, 7, 7, 7, 9, 7, 7, 7, 7, 7, 7, 6
 };
 
+#define TXR_SIZE 6
+uint32_t WALL_TEXTURE[] = {
+    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
+    0xFFFF00, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFF00,
+    0xFFFF00, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFF00,
+    0xFFFF00, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFF00,
+    0xFFFF00, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFF00,
+    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
+};
+
 uint32_t *gui_screen_buffer;
 
 double get_distance(double x, double y, double dx, double dy, uint8_t *texture);
@@ -47,10 +58,18 @@ uint32_t texture_to_color(int texture);
 
 void draw_rect(int x, int y, int width, int height, int color);
 
-double float_part(double x) {
-    return x - (int) x;
-}
+double closer_to_int(double x, double y) {
+    double fx = float_part(x);
+    double fy = float_part(y);
 
+    if (fx < 0.5) fx = 1 - fx;
+    if (fy < 0.5) fy = 1 - fy;
+
+    if (fx < 0) fx = -fx;
+    if (fy < 0) fy = -fy;
+
+    return (fx < fy) ? x : y;
+}
 
 int main(int argc, char **argv) {
     double x = 5, y = 5;
@@ -98,14 +117,21 @@ int main(int argc, char **argv) {
             double map_x = x + dx * distance;
             double map_y = y + dy * distance;
 
+            double good = closer_to_int(map_x, map_y);
+            int x_part = (good - ((int) good)) * TXR_SIZE;
+
             uint32_t color = ((int) (float_part(map_x) * 250)) << 16 | ((int) (float_part(map_y) * 250)) << 8 | 0x00;
 
             for (int j = 0; j < RESY; j++) {
+
                 if (j < top) set_pixel(i, j, CEILING_COLOR);
                 else if (j > bottom) set_pixel(i, j, FLOOR_COLOR);
-                // get color from texture
-
-                else set_pixel(i, j, color);
+                else {
+                    int y_part = (j - top) * TXR_SIZE / (bottom - top);
+                    // printf("x_part: %d, y_part: %d\n", x_part, y_part);
+                    set_pixel(i, j, WALL_TEXTURE[x_part + y_part * TXR_SIZE]);
+                }
+                    
             }
         }
 
