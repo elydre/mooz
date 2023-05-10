@@ -86,12 +86,12 @@ void gui_draw_frame() {
             XNextEvent(s_Display, &e);
             if (e.type == KeyPress) {
                 sym = XkbKeycodeToKeysym(s_Display, e.xkey.keycode, 0, 0);
-                printf("KeyPress:%d sym:%d\n", e.xkey.keycode, sym);
+                // printf("KeyPress:%d sym:%d\n", e.xkey.keycode, sym);
                 add_key_to_queue(1, sym);
             }
             else if (e.type == KeyRelease) {
                 sym = XkbKeycodeToKeysym(s_Display, e.xkey.keycode, 0, 0);
-                printf("KeyRelease:%d sym:%d\n", e.xkey.keycode, sym);
+                // printf("KeyRelease:%d sym:%d\n", e.xkey.keycode, sym);
                 add_key_to_queue(0, sym);
             }
         }

@@ -1,10 +1,12 @@
 #include "header.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 
 #define MAP_SIZE 10
 #define PI 3.14159
+#define ONK 1000.0
 
 #define BLOCK_RESY 2
 #define MINIMAP_SIZE 4
@@ -48,6 +50,12 @@ int main(int argc, char **argv) {
     int center, top, bottom;
 
     int color;
+
+    int pressed;
+    uint8_t key;
+
+    uint8_t key_state[6] = {0, 0, 0, 0, 0, 0};
+    // z, q, s, d
 
     gui_screen_buffer = malloc(RESX * RESY * sizeof(uint32_t));
 
@@ -93,13 +101,45 @@ int main(int argc, char **argv) {
         gui_draw_frame();
         tick_count[3] = get_ticks() - tick_count[2];
 
-        
+        get_key(&pressed, &key);
+        printf("pressed: %d, key: %d\n", pressed, key);
 
+        if (key == 122) {   // z
+            key_state[0] = pressed;
+        } else if (key == 113) {    // q
+            key_state[1] = pressed;
+        } else if (key == 115) {    // s
+            key_state[2] = pressed;
+        } else if (key == 100) {    // d
+            key_state[3] = pressed;
+        } else if (key == 81) {    // left
+            key_state[4] = pressed;
+        } else if (key == 83) {    // right
+            key_state[5] = pressed;
+        }
 
-        if (x < 1) x = 1;
-        if (y < 1) y = 1;
-        if (x > MAP_SIZE - 2) x = MAP_SIZE - 2;
-        if (y > MAP_SIZE - 2) y = MAP_SIZE - 2;
+        if (key_state[0]) {
+            x += cos(rot) * PLAYER_SPEED * tick_count[1] / ONK;
+            y += sin(rot) * PLAYER_SPEED * tick_count[1] / ONK;
+        }
+
+        if (key_state[1]) {
+            rot += ROT_SPEED * tick_count[1] / ONK;
+        }
+
+        if (key_state[2]) {
+            x -= cos(rot) * PLAYER_SPEED * tick_count[1] / ONK;
+            y -= sin(rot) * PLAYER_SPEED * tick_count[1] / ONK;
+        }
+
+        if (key_state[3]) {
+            rot -= ROT_SPEED * tick_count[1] / ONK;
+        }
+
+        // if (x < 1) x = 1;
+        // if (y < 1) y = 1;
+        // if (x > MAP_SIZE - 2) x = MAP_SIZE - 2;
+        // if (y > MAP_SIZE - 2) y = MAP_SIZE - 2;
 
         if (rot > PI) rot -= 2 * PI;
         if (rot < -PI) rot += 2 * PI;
