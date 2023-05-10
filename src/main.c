@@ -8,7 +8,7 @@
 #define PI 3.14159
 #define ONK 1000.0
 
-#define BLOCK_RESY 2
+#define BLOCK_RESY 1.7
 #define MINIMAP_SIZE 4
 
 #define PLAYER_SPEED 5
