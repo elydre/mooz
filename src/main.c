@@ -15,6 +15,8 @@
 #define ROT_SPEED 3
 #define FOV (PI / 4)
 
+#define RAW_SPEED 0.01
+
 #define FLOOR_COLOR 0x000044
 #define CEILING_COLOR 0x66FFFF
 
@@ -38,37 +40,25 @@ uint8_t MAP[] = {
     2, 7, 7, 7, 7, 9, 7, 7, 7, 7, 7, 7, 6
 };
 
-#define TEXTURE_SIZE 6
-
-uint32_t WALL_TEXTURE[] = {
-    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
-    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
-    0xFFFF00, 0xFFAAAA, 0xFFFF00, 0xFFAAAA, 0xFFAAAA, 0xFFFF00,
-    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
-    0xFFFF00, 0xFFAAAA, 0xFFAAAA, 0xFFFF00, 0xFFAAAA, 0xFFFF00,
-    0xFFFF00, 0xFFAAAA, 0xFFAAAA, 0xFFAAAA, 0xFFFF00, 0xFFFF00,
-    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
-};
-
 uint32_t *gui_screen_buffer;
 
-double get_distance(double x, double y, double rad_angle, uint8_t *texture);
+double get_distance(double x, double y, double dx, double dy, uint8_t *texture);
 uint32_t texture_to_color(int texture);
 
 void draw_rect(int x, int y, int width, int height, int color);
+
+double float_part(double x) {
+    return x - (int) x;
+}
 
 
 int main(int argc, char **argv) {
     double x = 5, y = 5;
     double rot = 0; // in radians
 
-    int center, top, bottom;
-    double looked_angle;
-
-    uint8_t texture;
-
-    int pressed;
-    uint8_t key;
+    double dx, dy, distance, rad_angle;
+    int top, bottom, pressed;
+    uint8_t key, texture;
 
     uint8_t key_state[4] = {0, 0, 0, 0};
     // z, q, s, d
@@ -85,21 +75,38 @@ int main(int argc, char **argv) {
         tick_count[1] = get_ticks() - tick_count[0];
         tick_count[0] = get_ticks();
 
-        for (int i = 0; i < RESX; i++) {
-            looked_angle = rot + (FOV / 2) - (FOV * i / RESX);
+        for (int i = 0; i < RESX; i++) {            
+            rad_angle = rot + (FOV / 2) - (FOV * i / RESX);
 
-            center = (int) (HALF_RESY * BLOCK_RESY / get_distance(x, y, looked_angle, &texture));
-            top = (int) (HALF_RESY - center);
-            bottom = (int) (HALF_RESY + center);
+            dx = cos(rad_angle);
+            dy = sin(rad_angle);
+            
+            distance = get_distance(x, y, dx, dy, &texture);
 
-            // if (texture != 5) {
+            top = (int) (HALF_RESY - (HALF_RESY * BLOCK_RESY / distance));
+            bottom = (int) (HALF_RESY + (HALF_RESY * BLOCK_RESY / distance));
+
+            if (texture != 5) {
                 for (int j = 0; j < RESY; j++) {
                     if (j < top) set_pixel(i, j, CEILING_COLOR);
                     else if (j > bottom) set_pixel(i, j, FLOOR_COLOR);
                     else set_pixel(i, j, texture_to_color(texture));
                 }
-            // }
+                continue;
+            }
 
+            double map_x = x + dx * distance;
+            double map_y = y + dy * distance;
+
+            uint32_t color = ((int) (float_part(map_x) * 250)) << 16 | ((int) (float_part(map_y) * 250)) << 8 | 0x00;
+
+            for (int j = 0; j < RESY; j++) {
+                if (j < top) set_pixel(i, j, CEILING_COLOR);
+                else if (j > bottom) set_pixel(i, j, FLOOR_COLOR);
+                // get color from texture
+
+                else set_pixel(i, j, color);
+            }
         }
 
         // draw minimap
@@ -201,16 +208,13 @@ uint32_t texture_to_color(int texture) {
     return 0;
 }
 
-double get_distance(double x, double y, double rad_angle, uint8_t *texture) {
-    double dx = cos(rad_angle);
-    double dy = sin(rad_angle);
-
+double get_distance(double x, double y, double dx, double dy, uint8_t *texture) {
     int map_x;
     int map_y;
 
     double distance = 0;
     do {
-        distance += 0.01;
+        distance += RAW_SPEED;
         map_x = (int) (x + dx * distance);
         map_y = (int) (y + dy * distance);
         if (map_x < 0 || map_x >= MAP_SIZE || map_y < 0 || map_y >= MAP_SIZE) {
