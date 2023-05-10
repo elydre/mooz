@@ -56,7 +56,7 @@ uint32_t *open_bmp(char *path) {
                             (data[(j * width + i) * factor + 2] << 16);
 
             if (factor == 4 && data[(j * width + i) * factor + 3] == 0) continue;
-            output[i + j * width] = color;
+            output[width * height - (i + j * width + 1)] = color;
         }
     }
 

@@ -26,19 +26,19 @@
 #define float_part(x) (x - (int) x)
 
 uint8_t MAP[] = {
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6,
-    2, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 6,
-    2, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 6,
-    2, 0, 0, 5, 5, 5, 5, 5, 5, 5, 0, 0, 6,
-    2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
-    2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
-    2, 0, 0, 5, 5, 5, 5, 5, 5, 5, 0, 0, 6,
-    2, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 6,
-    2, 0, 0, 5, 0, 0, 0, 0, 0, 5, 0, 0, 6,
-    2, 0, 0, 5, 5, 5, 5, 0, 0, 5, 0, 0, 6,
-    2, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 6,
-    2, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 6,
-    2, 7, 7, 7, 7, 9, 7, 7, 7, 7, 7, 7, 6
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
+    1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1,
+    1, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 1,
+    1, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 1,
+    1, 0, 0, 3, 3, 3, 3, 0, 0, 3, 0, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
+    1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1
 };
 
 #define TXR_SIZE 16
@@ -71,7 +71,10 @@ int main(int argc, char **argv) {
     int top, bottom, pressed;
     uint8_t key, texture;
 
-    uint32_t *wall_texture = open_bmp("img/wall.bmp");
+    uint32_t *textures[3];
+    textures[0] = open_bmp("img/wood.bmp");
+    textures[1] = open_bmp("img/bricks.bmp");
+    textures[2] = open_bmp("img/stone.bmp");
 
     uint8_t key_state[4] = {0, 0, 0, 0};
     // z, q, s, d
@@ -108,31 +111,26 @@ int main(int argc, char **argv) {
 
             if (bottom == top) continue;
 
-            if (texture != 5) {
-                for (int j = 0; j < RESY; j++) {
-                    if (j < top) set_pixel(i, j, CEILING_COLOR);
-                    else if (j > bottom) set_pixel(i, j, FLOOR_COLOR);
-                    else set_pixel(i, j, texture_to_color(texture));
-                }
-                continue;
-            }
-
             double map_x = x + dx * distance;
             double map_y = y + dy * distance;
 
             double good = closer_to_int(map_x, map_y);
             int x_part = (good - ((int) good)) * TXR_SIZE;
 
+            if (x_part >= TXR_SIZE) x_part = TXR_SIZE - 1;
+            if (x_part < 0) x_part = 0;
+
             uint32_t color = ((int) (float_part(map_x) * 250)) << 16 | ((int) (float_part(map_y) * 250)) << 8 | 0x00;
 
             for (int j = 0; j < RESY; j++) {
-
                 if (j < top) set_pixel(i, j, CEILING_COLOR);
                 else if (j > bottom) set_pixel(i, j, FLOOR_COLOR);
                 else {
                     int y_part = (j - top) * TXR_SIZE / (bottom - top);
+                    if (y_part >= TXR_SIZE) y_part = TXR_SIZE - 1;
+                    if (y_part < 0) y_part = 0;
                     // printf("x_part: %d, y_part: %d\n", x_part, y_part);
-                    set_pixel(i, j, wall_texture[x_part + y_part * TXR_SIZE]);
+                    set_pixel(i, j, textures[texture][x_part + y_part * TXR_SIZE]);
                 }
                     
             }
@@ -252,6 +250,6 @@ double get_distance(double x, double y, double dx, double dy, uint8_t *texture) 
         }
     } while (!MAP[map_x + map_y * MAP_SIZE]);
 
-    *texture = MAP[map_x + map_y * MAP_SIZE];
+    *texture = MAP[map_x + map_y * MAP_SIZE] - 1;
     return distance;
 }
