@@ -17,4 +17,6 @@ uint32_t get_ticks();
 int get_key(int* pressed, uint8_t* Key);
 void set_window_title(char *title);
 
+uint32_t *open_bmp(char *path);
+
 #endif

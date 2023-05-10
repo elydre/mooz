@@ -41,15 +41,7 @@ uint8_t MAP[] = {
     2, 7, 7, 7, 7, 9, 7, 7, 7, 7, 7, 7, 6
 };
 
-#define TXR_SIZE 6
-uint32_t WALL_TEXTURE[] = {
-    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
-    0xFFFF00, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFF00,
-    0xFFFF00, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFF00,
-    0xFFFF00, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFF00,
-    0xFFFF00, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFFAA, 0xFFFF00,
-    0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00, 0xFFFF00,
-};
+#define TXR_SIZE 16
 
 uint32_t *gui_screen_buffer;
 
@@ -79,6 +71,8 @@ int main(int argc, char **argv) {
     int top, bottom, pressed;
     uint8_t key, texture;
 
+    uint32_t *wall_texture = open_bmp("img/wall.bmp");
+
     uint8_t key_state[4] = {0, 0, 0, 0};
     // z, q, s, d
 
@@ -92,7 +86,14 @@ int main(int argc, char **argv) {
 
     while (1) {
         tick_count[1] = get_ticks() - tick_count[0];
+        if (tick_count[1] == 0) {
+            printf("sleeping\n");
+            sleep_ms(1);
+            continue;
+        }
+
         tick_count[0] = get_ticks();
+
 
         for (int i = 0; i < RESX; i++) {            
             rad_angle = rot + (FOV / 2) - (FOV * i / RESX);
@@ -104,6 +105,8 @@ int main(int argc, char **argv) {
 
             top = (int) (HALF_RESY - (HALF_RESY * BLOCK_RESY / distance));
             bottom = (int) (HALF_RESY + (HALF_RESY * BLOCK_RESY / distance));
+
+            if (bottom == top) continue;
 
             if (texture != 5) {
                 for (int j = 0; j < RESY; j++) {
@@ -129,7 +132,7 @@ int main(int argc, char **argv) {
                 else {
                     int y_part = (j - top) * TXR_SIZE / (bottom - top);
                     // printf("x_part: %d, y_part: %d\n", x_part, y_part);
-                    set_pixel(i, j, WALL_TEXTURE[x_part + y_part * TXR_SIZE]);
+                    set_pixel(i, j, wall_texture[x_part + y_part * TXR_SIZE]);
                 }
                     
             }
