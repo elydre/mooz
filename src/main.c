@@ -4,23 +4,29 @@
 #include <stdio.h>
 #include <math.h>
 
+// player speed
+#define PLAYER_SPEED 4
+#define ROT_SPEED 2
+
+// textures size
 #define MAP_SIZE 13
-#define PI 3.14159
-#define ONK 1000.0
+#define TXR_SIZE 16
 
-#define BLOCK_RESY 1.7
-#define MINIMAP_SIZE 4
-
-#define PLAYER_SPEED 5
-#define ROT_SPEED 3
+// render settings
 #define FOV (PI / 4)
-
+#define BLOCK_RESY (PI / 2)
 #define RAW_SPEED 0.01
 
-#define FLOOR_COLOR 0x000044
-#define CEILING_COLOR 0x66FFFF
+#define MINIMAP_SIZE 6
 
+#define FLOOR_COLOR 0x000044
+#define CEILING_COLOR 0xAAFFFF
+
+// internal
 #define HALF_RESY (RESY / 2)
+
+#define PI 3.14159265358979323846
+#define ONK 1000.0
 
 #define set_pixel(x, y, color) gui_screen_buffer[(y) * RESX + (x)] = (color)
 #define float_part(x) (x - (int) x)
@@ -41,14 +47,14 @@ uint8_t MAP[] = {
     1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1
 };
 
-#define TXR_SIZE 16
-
 uint32_t *gui_screen_buffer;
+uint8_t key_state[6];
 
 double get_distance(double x, double y, double dx, double dy, uint8_t *texture);
 uint32_t texture_to_color(int texture);
 
 void draw_rect(int x, int y, int width, int height, int color);
+void move(double *x, double *y, double *rot, int *tick_count, int vrai);
 
 double closer_to_int(double x, double y) {
     double fx = float_part(x);
@@ -71,13 +77,15 @@ int main(int argc, char **argv) {
     int top, bottom, pressed;
     uint8_t key, texture;
 
+    for (int i = 0; i < 6; i++)
+        key_state[i] = 0;
+
     uint32_t *textures[3];
     textures[0] = open_bmp("img/wood.bmp");
     textures[1] = open_bmp("img/bricks.bmp");
     textures[2] = open_bmp("img/stone.bmp");
 
-    uint8_t key_state[4] = {0, 0, 0, 0};
-    // z, q, s, d
+    // z, q, s, d, a, e
 
     gui_screen_buffer = malloc(RESX * RESY * sizeof(uint32_t));
 
@@ -103,7 +111,7 @@ int main(int argc, char **argv) {
 
             dx = cos(rad_angle);
             dy = sin(rad_angle);
-            
+
             distance = get_distance(x, y, dx, dy, &texture);
 
             top = (int) (HALF_RESY - (HALF_RESY * BLOCK_RESY / distance));
@@ -119,8 +127,6 @@ int main(int argc, char **argv) {
 
             if (x_part >= TXR_SIZE) x_part = TXR_SIZE - 1;
             if (x_part < 0) x_part = 0;
-
-            uint32_t color = ((int) (float_part(map_x) * 250)) << 16 | ((int) (float_part(map_y) * 250)) << 8 | 0x00;
 
             for (int j = 0; j < RESY; j++) {
                 if (j < top) set_pixel(i, j, CEILING_COLOR);
@@ -154,6 +160,7 @@ int main(int argc, char **argv) {
 
         get_key(&pressed, &key);
 
+
         if (key == 122) {   // z
             key_state[0] = pressed;
         } else if (key == 113) {    // q
@@ -162,40 +169,34 @@ int main(int argc, char **argv) {
             key_state[2] = pressed;
         } else if (key == 100) {    // d
             key_state[3] = pressed;
+        } else if (key == 97) {     // a
+            key_state[4] = pressed;
+        } else if (key == 101) {    // e
+            key_state[5] = pressed;
         }
 
-        if (key_state[0]) { // go forward
-            x += cos(rot) * PLAYER_SPEED * tick_count[1] / ONK;
-            y += sin(rot) * PLAYER_SPEED * tick_count[1] / ONK;
+        for (int i = 0; i < 2; i++) {
+            int current = MAP[(int) x + (int) y * MAP_SIZE];
+            if (current) {
+                move(&x, &y, &rot, tick_count, -1);
+                break;
+            } else {
+                move(&x, &y, &rot, tick_count, 1);
+            }
+            // printf("current: %d\n", current);
         }
-
-        if (key_state[2]) { // go backward
-            x -= cos(rot) * PLAYER_SPEED * tick_count[1] / ONK;
-            y -= sin(rot) * PLAYER_SPEED * tick_count[1] / ONK;
-        }
-
-        if (key_state[1]) { // look left
-            rot += ROT_SPEED * tick_count[1] / ONK;
-        }
-
-        if (key_state[3]) { // look right
-            rot -= ROT_SPEED * tick_count[1] / ONK;
-        }
-
-        // if (x < 1) x = 1;
-        // if (y < 1) y = 1;
-        // if (x > MAP_SIZE - 2) x = MAP_SIZE - 2;
-        // if (y > MAP_SIZE - 2) y = MAP_SIZE - 2;
 
         if (rot > PI) rot -= 2 * PI;
         if (rot < -PI) rot += 2 * PI;
 
-        printf("fps: %03d, keys[%d, %d, %d, %d], rot: %f, x: %f, y: %f\n",
+        printf("fps: %03d, keys[%d, %d, %d, %d, %d, %d], rot: %f, x: %f, y: %f\n",
                 1000 / tick_count[1],
                 key_state[0],
                 key_state[1],
                 key_state[2],
                 key_state[3],
+                key_state[4],
+                key_state[5],
                 rot, x, y
         );
 
@@ -252,4 +253,34 @@ double get_distance(double x, double y, double dx, double dy, uint8_t *texture) 
 
     *texture = MAP[map_x + map_y * MAP_SIZE] - 1;
     return distance;
+}
+
+void move(double *x, double *y, double *rot, int *tick_count, int vrai) {
+    if (key_state[0]) { // go forward
+        *x += vrai * (cos(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+        *y += vrai * (sin(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+    }
+
+    if (key_state[2]) { // go backward
+        *x -= vrai * (cos(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+        *y -= vrai * (sin(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+    }
+
+    if (key_state[1]) { // look left
+        *rot += vrai * (ROT_SPEED * tick_count[1] / ONK);
+    }
+
+    if (key_state[3]) { // look right
+        *rot -= vrai * (ROT_SPEED * tick_count[1] / ONK);
+    }
+
+    if (key_state[4]) { // strafe left
+        *x -= vrai * (sin(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+        *y += vrai * (cos(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+    }
+
+    if (key_state[5]) { // strafe right
+        *x += vrai * (sin(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+        *y -= vrai * (cos(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+    }
 }
