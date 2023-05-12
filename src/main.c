@@ -54,7 +54,7 @@ double get_distance(double x, double y, double dx, double dy, uint8_t *texture);
 uint32_t texture_to_color(int texture);
 
 void draw_rect(int x, int y, int width, int height, int color);
-void move(double *x, double *y, double *rot, int *tick_count, int vrai);
+void move(double *player_x, double *player_y, double *rot, int fps);
 
 double closer_to_int(double x, double y) {
     double fx = float_part(x);
@@ -175,21 +175,12 @@ int main(int argc, char **argv) {
             key_state[5] = pressed;
         }
 
-        for (int i = 0; i < 2; i++) {
-            int current = MAP[(int) x + (int) y * MAP_SIZE];
-            if (current) {
-                move(&x, &y, &rot, tick_count, -1);
-                break;
-            } else {
-                move(&x, &y, &rot, tick_count, 1);
-            }
-            // printf("current: %d\n", current);
-        }
+        move(&x, &y, &rot, tick_count[1]);
 
         if (rot > PI) rot -= 2 * PI;
         if (rot < -PI) rot += 2 * PI;
 
-        printf("fps: %03d, keys[%d, %d, %d, %d, %d, %d], rot: %f, x: %f, y: %f\n",
+        printf("fps: %04d, keys[%d, %d, %d, %d, %d, %d], rot: %f, x: %f, y: %f\n",
                 1000 / tick_count[1],
                 key_state[0],
                 key_state[1],
@@ -255,32 +246,39 @@ double get_distance(double x, double y, double dx, double dy, uint8_t *texture) 
     return distance;
 }
 
-void move(double *x, double *y, double *rot, int *tick_count, int vrai) {
+void move(double *player_x, double *player_y, double *rot, int fps) {
+    double x = 0;
+    double y = 0;
+
     if (key_state[0]) { // go forward
-        *x += vrai * (cos(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
-        *y += vrai * (sin(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+        x += cos(*rot) * PLAYER_SPEED * fps / ONK;
+        y += sin(*rot) * PLAYER_SPEED * fps / ONK;
     }
 
     if (key_state[2]) { // go backward
-        *x -= vrai * (cos(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
-        *y -= vrai * (sin(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+        x -= cos(*rot) * PLAYER_SPEED * fps / ONK;
+        y -= sin(*rot) * PLAYER_SPEED * fps / ONK;
     }
 
     if (key_state[1]) { // look left
-        *rot += vrai * (ROT_SPEED * tick_count[1] / ONK);
+        *rot += ROT_SPEED * fps / ONK;
     }
 
     if (key_state[3]) { // look right
-        *rot -= vrai * (ROT_SPEED * tick_count[1] / ONK);
+        *rot -= ROT_SPEED * fps / ONK;
     }
 
     if (key_state[4]) { // strafe left
-        *x -= vrai * (sin(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
-        *y += vrai * (cos(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+        x -= sin(*rot) * PLAYER_SPEED * fps / ONK;
+        y += cos(*rot) * PLAYER_SPEED * fps / ONK;
     }
 
     if (key_state[5]) { // strafe right
-        *x += vrai * (sin(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
-        *y -= vrai * (cos(*rot) * PLAYER_SPEED * tick_count[1] / ONK);
+        x += sin(*rot) * PLAYER_SPEED * fps / ONK;
+        y -= cos(*rot) * PLAYER_SPEED * fps / ONK;
     }
+
+    // apply movement
+    *player_x += x;
+    *player_y += y;
 }
