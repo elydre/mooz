@@ -48,7 +48,11 @@ uint8_t MAP[] = {
 };
 
 uint32_t *gui_screen_buffer;
-uint8_t key_state[6];
+
+int y_offset = 0;
+
+uint8_t key_state[7];
+// z, q, s, d, a, e, space
 
 double get_distance(double x, double y, double dx, double dy, uint8_t *texture);
 uint32_t texture_to_color(int texture);
@@ -85,7 +89,6 @@ int main(int argc, char **argv) {
     textures[1] = open_bmp("img/bricks.bmp");
     textures[2] = open_bmp("img/stone.bmp");
 
-    // z, q, s, d, a, e
 
     gui_screen_buffer = malloc(RESX * RESY * sizeof(uint32_t));
 
@@ -114,8 +117,8 @@ int main(int argc, char **argv) {
 
             distance = get_distance(x, y, dx, dy, &texture);
 
-            top = (int) (HALF_RESY - (HALF_RESY * BLOCK_RESY / distance));
-            bottom = (int) (HALF_RESY + (HALF_RESY * BLOCK_RESY / distance));
+            top = (int) (HALF_RESY - (HALF_RESY * BLOCK_RESY / distance)) + y_offset;
+            bottom = (int) (HALF_RESY + (HALF_RESY * BLOCK_RESY / distance)) + y_offset;
 
             if (bottom == top) continue;
 
@@ -173,6 +176,8 @@ int main(int argc, char **argv) {
             key_state[4] = pressed;
         } else if (key == 101) {    // e
             key_state[5] = pressed;
+        } else if (key == 32) {     // space
+            key_state[6] = pressed;
         }
 
         move(&x, &y, &rot, tick_count[1]);
@@ -180,7 +185,7 @@ int main(int argc, char **argv) {
         if (rot > PI) rot -= 2 * PI;
         if (rot < -PI) rot += 2 * PI;
 
-        printf("fps: %04d, keys[%d, %d, %d, %d, %d, %d], rot: %f, x: %f, y: %f\n",
+        printf("fps: %04d, keys[%d, %d, %d, %d, %d, %d, %d], rot: %f, x: %f, y: %f\n",
                 1000 / tick_count[1],
                 key_state[0],
                 key_state[1],
@@ -188,12 +193,16 @@ int main(int argc, char **argv) {
                 key_state[3],
                 key_state[4],
                 key_state[5],
+                key_state[6],
                 rot, x, y
         );
 
         tick_count[2] = get_ticks();
         gui_draw_frame();
-        tick_count[3] = get_ticks() - tick_count[2];        
+        tick_count[3] = get_ticks() - tick_count[2];
+
+        if (y_offset > HALF_RESY) y_offset = HALF_RESY;
+        if (y_offset < -HALF_RESY) y_offset = -HALF_RESY;
     }
 
     return 0;
@@ -289,6 +298,12 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
 
     if (key_state[3]) { // look right
         *rot -= ROT_SPEED * fps / ONK;
+    }
+
+    if (key_state[6]) { // jump
+        y_offset += 1;
+    } else {
+        y_offset -= 1;
     }
 
     // apply movement
