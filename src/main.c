@@ -211,18 +211,7 @@ uint32_t texture_to_color(int texture) {
         case 1: return 0x0000AA;
         case 2: return 0x00AA00;
         case 3: return 0x00AAAA;
-        case 4: return 0xAA0000;
-        case 5: return 0xAA00AA;
-        case 6: return 0xAA5500;
-        case 7: return 0xAAAAAA;
-        case 8: return 0x555555;
-        case 9: return 0x5555FF;
-        case 10: return 0x55FF55;
-        case 11: return 0x55FFFF;
-        case 12: return 0xFF5555;
-        case 13: return 0xFF55FF;
-        case 14: return 0xFFFF55;
-        case 15: return 0xFFFFFF;
+        default: return 0xFF0000;
     }
     return 0;
 }
@@ -238,26 +227,60 @@ double get_distance(double x, double y, double dx, double dy, uint8_t *texture) 
         map_y = (int) (y + dy * distance);
         if (map_x < 0 || map_x >= MAP_SIZE || map_y < 0 || map_y >= MAP_SIZE) {
             *texture = 0;
-            return distance;
+            return distance - RAW_SPEED;
         }
     } while (!MAP[map_x + map_y * MAP_SIZE]);
 
     *texture = MAP[map_x + map_y * MAP_SIZE] - 1;
-    return distance;
+    return distance - RAW_SPEED;
 }
 
 void move(double *player_x, double *player_y, double *rot, int fps) {
     double x = 0;
     double y = 0;
 
+    uint8_t texture;
+    double dx, dy, distance;
+
+    dx = cos(*rot);
+    dy = sin(*rot);
+
     if (key_state[0]) { // go forward
-        x += cos(*rot) * PLAYER_SPEED * fps / ONK;
-        y += sin(*rot) * PLAYER_SPEED * fps / ONK;
+        // check collisions
+        distance = get_distance(*player_x, *player_y, dx, dy, &texture);
+
+        if (distance > PLAYER_SPEED * fps / ONK) {
+            x += dx * PLAYER_SPEED * fps / ONK;
+            y += dy * PLAYER_SPEED * fps / ONK;
+        }
     }
 
     if (key_state[2]) { // go backward
-        x -= cos(*rot) * PLAYER_SPEED * fps / ONK;
-        y -= sin(*rot) * PLAYER_SPEED * fps / ONK;
+        // check collisions
+        distance = get_distance(*player_x, *player_y, -dx, -dy, &texture);
+
+        if (distance > PLAYER_SPEED * fps / ONK) {
+            x -= dx * PLAYER_SPEED * fps / ONK;
+            y -= dy * PLAYER_SPEED * fps / ONK;
+        }
+    }
+
+    if (key_state[4]) { // strafe left
+        distance = get_distance(*player_x, *player_y, -dy, dx, &texture);
+
+        if (distance > PLAYER_SPEED * fps / ONK) {
+            x -= dy * PLAYER_SPEED * fps / ONK;
+            y += dx * PLAYER_SPEED * fps / ONK;
+        }
+    }
+
+    if (key_state[5]) { // strafe right
+        distance = get_distance(*player_x, *player_y, dy, -dx, &texture);
+
+        if (distance > PLAYER_SPEED * fps / ONK) {
+            x += dy * PLAYER_SPEED * fps / ONK;
+            y -= dx * PLAYER_SPEED * fps / ONK;
+        }
     }
 
     if (key_state[1]) { // look left
@@ -266,16 +289,6 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
 
     if (key_state[3]) { // look right
         *rot -= ROT_SPEED * fps / ONK;
-    }
-
-    if (key_state[4]) { // strafe left
-        x -= sin(*rot) * PLAYER_SPEED * fps / ONK;
-        y += cos(*rot) * PLAYER_SPEED * fps / ONK;
-    }
-
-    if (key_state[5]) { // strafe right
-        x += sin(*rot) * PLAYER_SPEED * fps / ONK;
-        y -= cos(*rot) * PLAYER_SPEED * fps / ONK;
     }
 
     // apply movement
