@@ -19,8 +19,8 @@
 
 #define MINIMAP_SIZE 6
 
-#define FLOOR_COLOR 0x000044
-#define CEILING_COLOR 0xAAFFFF
+#define FLOOR_COLOR 0xFFFF99
+#define CEILING_COLOR 0xBBBB99
 
 // internal
 #define HALF_RESY (RESY / 2)
@@ -85,9 +85,9 @@ int main(int argc, char **argv) {
         key_state[i] = 0;
 
     uint32_t *textures[3];
-    textures[0] = open_bmp("img/wood.bmp");
-    textures[1] = open_bmp("img/bricks.bmp");
-    textures[2] = open_bmp("img/stone.bmp");
+    textures[0] = open_bmp("img/br.bmp");
+    textures[1] = open_bmp("img/stone.bmp");
+    textures[2] = open_bmp("img/bricks.bmp");
 
 
     gui_screen_buffer = malloc(RESX * RESY * sizeof(uint32_t));
@@ -187,7 +187,7 @@ int main(int argc, char **argv) {
         if (rot > PI) rot -= 2 * PI;
         if (rot < -PI) rot += 2 * PI;
 
-        printf("fps: %04d, keys[%d, %d, %d, %d, %d, %d, %d, %d], rot: %f, x: %f, y: %f\n",
+        printf("fps: %04d, keys[%d,%d,%d,%d,%d,%d,%d,%d], rot: %f, x: %f, y: %f\n",
                 1000 / tick_count[1],
                 key_state[0],
                 key_state[1],

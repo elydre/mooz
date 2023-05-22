@@ -3,8 +3,8 @@
 
 #define KEYQUEUE_SIZE 16
 
-#define RESX 640
-#define RESY 480
+#define RESX 1000
+#define RESY 700
 
 #include "header.h"
 
