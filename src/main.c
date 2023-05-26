@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
         get_key(&pressed, &key);
 
 
-        if (key == 122) {   // z
+        if (key == 122) {           // z
             key_state[0] = pressed;
         } else if (key == 113) {    // q
             key_state[1] = pressed;
