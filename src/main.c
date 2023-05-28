@@ -28,10 +28,7 @@
 #define PI 3.14159265358979323846
 #define ONK 1000.0
 
-#define set_pixel(x, y, color) gui_screen_buffer[(y) * RESX + (x)] = (color)
-#define float_part(x) (x - (int) x)
-
-uint8_t MAP[] = {
+int8_t MAP[] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
     1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
@@ -41,7 +38,7 @@ uint8_t MAP[] = {
     1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1,
     1, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 1,
     1, 0, 0, 3, 0, 0, 0, 0, 0, 3, 0, 0, 1,
-    1, 0, 0, 3, 3, 3, 3, 0, 0, 3, 0, 0, 1,
+    1, 0, 0, 3, 0, 0,-1, 0, 0, 3, 0, 0, 1,
     1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
     1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
     1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1
@@ -54,11 +51,11 @@ int y_offset = 0;
 uint8_t key_state[8];
 // z, q, s, d, a, e, space, shift
 
-double get_distance(double x, double y, double dx, double dy, uint8_t *texture);
+double get_wall(double x, double y, double dx, double dy, int8_t *texture);
 uint32_t texture_to_color(int texture);
 
-void draw_rect(int x, int y, int width, int height, int color);
 void move(double *player_x, double *player_y, double *rot, int fps);
+
 
 double closer_to_int(double x, double y) {
     double fx = float_part(x);
@@ -79,7 +76,8 @@ int main(int argc, char **argv) {
 
     double dx, dy, distance, rad_angle;
     int top, bottom, pressed;
-    uint8_t key, texture;
+    int8_t texture;
+    uint8_t key;
 
     for (int i = 0; i < 6; i++)
         key_state[i] = 0;
@@ -108,14 +106,14 @@ int main(int argc, char **argv) {
 
         tick_count[0] = get_ticks();
 
-
+        // draw walls
         for (int i = 0; i < RESX; i++) {            
             rad_angle = rot + (FOV / 2) - (FOV * i / RESX);
 
             dx = cos(rad_angle);
             dy = sin(rad_angle);
 
-            distance = get_distance(x, y, dx, dy, &texture);
+            distance = get_wall(x, y, dx, dy, &texture);
 
             top = (int) (HALF_RESY - (HALF_RESY * BLOCK_RESY / distance)) + y_offset;
             bottom = (int) (HALF_RESY + (HALF_RESY * BLOCK_RESY / distance)) + y_offset;
@@ -141,25 +139,27 @@ int main(int argc, char **argv) {
                     // printf("x_part: %d, y_part: %d\n", x_part, y_part);
                     set_pixel(i, j, textures[texture][x_part + y_part * TXR_SIZE]);
                 }
-                    
             }
-        }
+        }        
 
         // draw minimap
-
         for (int i = 0; i < MAP_SIZE; i++) {
             for (int j = 0; j < MAP_SIZE; j++) {
                 draw_rect(RESX - MINIMAP_SIZE * MAP_SIZE + i * MINIMAP_SIZE, j * MINIMAP_SIZE, MINIMAP_SIZE, MINIMAP_SIZE, texture_to_color(MAP[i + j * MAP_SIZE]));
-                if (i == (int) x && j == (int) y)
-                    draw_rect(RESX - MINIMAP_SIZE * MAP_SIZE + i * MINIMAP_SIZE, j * MINIMAP_SIZE, MINIMAP_SIZE, MINIMAP_SIZE, 0xFFFFFF);
-                if (i == (int)(x + cos(rot) * 2) && j == (int)(y + sin(rot) * 2))
-                    draw_rect(RESX - MINIMAP_SIZE * MAP_SIZE + i * MINIMAP_SIZE, j * MINIMAP_SIZE, MINIMAP_SIZE / 2, MINIMAP_SIZE / 2, 0x00FF00);
             }
         }
 
-        // draw fps
-        draw_rect(0, 0, tick_count[1] * 2, 7, 0x880000);
-        draw_rect(0, 0, (tick_count[1] - tick_count[3]) * 2, 7, 0xCC0000);
+        // draw player
+        draw_rect(RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE - MINIMAP_SIZE / 2, y * MINIMAP_SIZE - MINIMAP_SIZE / 2, MINIMAP_SIZE, MINIMAP_SIZE, 0xFFFF00);
+        // draw direction
+        int dir_x = RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE + cos(rot) * 5 * MINIMAP_SIZE;
+        int dir_y = y * MINIMAP_SIZE + sin(rot) * 5 * MINIMAP_SIZE;
+        if (dir_x < 0) dir_x = 0;
+        if (dir_x >= RESX) dir_x = RESX - 1;
+        if (dir_y < 0) dir_y = 0;
+        if (dir_y >= RESY) dir_y = RESY - 1;
+
+        draw_line(RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE, y * MINIMAP_SIZE, dir_x, dir_y, 0xFFFF00);
 
         get_key(&pressed, &key);
 
@@ -208,12 +208,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void draw_rect(int x, int y, int width, int height, int color) {
-    for (int i = x; i < x + width; i++)
-        for (int j = y; j < y + height; j++)
-            set_pixel(i, j, color);
-}
-
 uint32_t texture_to_color(int texture) {
     switch (texture) {
         case 0: return 0x000000;
@@ -225,7 +219,7 @@ uint32_t texture_to_color(int texture) {
     return 0;
 }
 
-double get_distance(double x, double y, double dx, double dy, uint8_t *texture) {
+double get_wall(double x, double y, double dx, double dy, int8_t *texture) {
     int map_x;
     int map_y;
 
@@ -238,9 +232,28 @@ double get_distance(double x, double y, double dx, double dy, uint8_t *texture) 
             *texture = 0;
             return distance - RAW_SPEED;
         }
-    } while (!MAP[map_x + map_y * MAP_SIZE]);
+    } while (MAP[map_x + map_y * MAP_SIZE] <= 0);
 
     *texture = MAP[map_x + map_y * MAP_SIZE] - 1;
+    return distance - RAW_SPEED;
+}
+
+double get_object(double x, double y, double dx, double dy, int8_t *texture) {
+    int map_x;
+    int map_y;
+
+    double distance = 0;
+    do {
+        distance += RAW_SPEED;
+        map_x = (int) (x + dx * distance);
+        map_y = (int) (y + dy * distance);
+        if (map_x < 0 || map_x >= MAP_SIZE || map_y < 0 || map_y >= MAP_SIZE) {
+            *texture = 0;
+            return distance - RAW_SPEED;
+        }
+    } while (MAP[map_x + map_y * MAP_SIZE] >= 0);
+
+    *texture = - (MAP[map_x + map_y * MAP_SIZE] - 1);
     return distance - RAW_SPEED;
 }
 
@@ -248,7 +261,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
     double x = 0;
     double y = 0;
 
-    uint8_t texture;
+    int8_t texture;
     double dx, dy, distance;
 
     dx = cos(*rot);
@@ -256,7 +269,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
 
     if (key_state[0]) { // go forward
         // check collisions
-        distance = get_distance(*player_x, *player_y, dx, dy, &texture);
+        distance = get_wall(*player_x, *player_y, dx, dy, &texture);
 
         if (distance > PLAYER_SPEED * fps / ONK) {
             x += dx * PLAYER_SPEED * fps / ONK;
@@ -266,7 +279,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
 
     if (key_state[2]) { // go backward
         // check collisions
-        distance = get_distance(*player_x, *player_y, -dx, -dy, &texture);
+        distance = get_wall(*player_x, *player_y, -dx, -dy, &texture);
 
         if (distance > PLAYER_SPEED * fps / ONK) {
             x -= dx * PLAYER_SPEED * fps / ONK;
@@ -275,7 +288,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
     }
 
     if (key_state[4]) { // strafe left
-        distance = get_distance(*player_x, *player_y, -dy, dx, &texture);
+        distance = get_wall(*player_x, *player_y, -dy, dx, &texture);
 
         if (distance > PLAYER_SPEED * fps / ONK) {
             x -= dy * PLAYER_SPEED * fps / ONK;
@@ -284,7 +297,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
     }
 
     if (key_state[5]) { // strafe right
-        distance = get_distance(*player_x, *player_y, dy, -dx, &texture);
+        distance = get_wall(*player_x, *player_y, dy, -dx, &texture);
 
         if (distance > PLAYER_SPEED * fps / ONK) {
             x += dy * PLAYER_SPEED * fps / ONK;
