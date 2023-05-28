@@ -28,6 +28,8 @@
 #define PI 3.14159265358979323846
 #define ONK 1000.0
 
+#define get_distance(x, y, dx, dy) get_wall(x, y, dx, dy, NULL, NULL)
+
 int8_t MAP[] = {
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1,
@@ -51,7 +53,8 @@ int y_offset = 0;
 uint8_t key_state[8];
 // z, q, s, d, a, e, space, shift
 
-double get_wall(double x, double y, double dx, double dy, int8_t *texture);
+double get_wall(double x, double y, double dx, double dy, int8_t *texture, int8_t *object_found);
+
 uint32_t texture_to_color(int texture);
 
 void move(double *player_x, double *player_y, double *rot, int fps);
@@ -76,7 +79,7 @@ int main(int argc, char **argv) {
 
     double dx, dy, distance, rad_angle;
     int top, bottom, pressed;
-    int8_t texture;
+    int8_t id, object_found;
     uint8_t key;
 
     for (int i = 0; i < 6; i++)
@@ -113,7 +116,7 @@ int main(int argc, char **argv) {
             dx = cos(rad_angle);
             dy = sin(rad_angle);
 
-            distance = get_wall(x, y, dx, dy, &texture);
+            distance = get_wall(x, y, dx, dy, &id, &object_found);
 
             top = (int) (HALF_RESY - (HALF_RESY * BLOCK_RESY / distance)) + y_offset;
             bottom = (int) (HALF_RESY + (HALF_RESY * BLOCK_RESY / distance)) + y_offset;
@@ -136,11 +139,12 @@ int main(int argc, char **argv) {
                     int y_part = (j - top) * TXR_SIZE / (bottom - top);
                     if (y_part >= TXR_SIZE) y_part = TXR_SIZE - 1;
                     if (y_part < 0) y_part = 0;
-                    // printf("x_part: %d, y_part: %d\n", x_part, y_part);
-                    set_pixel(i, j, textures[texture][x_part + y_part * TXR_SIZE]);
+                    int pixel_color = textures[id][x_part + y_part * TXR_SIZE];
+                    if (object_found) pixel_color = (pixel_color >> 1) & 0x7F7F7F;
+                    set_pixel(i, j, pixel_color);
                 }
             }
-        }        
+        }
 
         // draw minimap
         for (int i = 0; i < MAP_SIZE; i++) {
@@ -219,41 +223,32 @@ uint32_t texture_to_color(int texture) {
     return 0;
 }
 
-double get_wall(double x, double y, double dx, double dy, int8_t *texture) {
+double get_wall(double x, double y, double dx, double dy, int8_t *id, int8_t *object_found) {
     int map_x;
     int map_y;
 
     double distance = 0;
+
+    if (object_found != NULL) *object_found = 0;
+
     do {
         distance += RAW_SPEED;
         map_x = (int) (x + dx * distance);
         map_y = (int) (y + dy * distance);
+
+        if (MAP[map_x + map_y * MAP_SIZE] < 0 && object_found != NULL && *object_found == 0) {
+            *object_found = -MAP[map_x + map_y * MAP_SIZE];
+        }
+
         if (map_x < 0 || map_x >= MAP_SIZE || map_y < 0 || map_y >= MAP_SIZE) {
-            *texture = 0;
+            if (id != NULL) *id = 0;
             return distance - RAW_SPEED;
         }
+
     } while (MAP[map_x + map_y * MAP_SIZE] <= 0);
 
-    *texture = MAP[map_x + map_y * MAP_SIZE] - 1;
-    return distance - RAW_SPEED;
-}
+    if (id != NULL) *id = MAP[map_x + map_y * MAP_SIZE] - 1;
 
-double get_object(double x, double y, double dx, double dy, int8_t *texture) {
-    int map_x;
-    int map_y;
-
-    double distance = 0;
-    do {
-        distance += RAW_SPEED;
-        map_x = (int) (x + dx * distance);
-        map_y = (int) (y + dy * distance);
-        if (map_x < 0 || map_x >= MAP_SIZE || map_y < 0 || map_y >= MAP_SIZE) {
-            *texture = 0;
-            return distance - RAW_SPEED;
-        }
-    } while (MAP[map_x + map_y * MAP_SIZE] >= 0);
-
-    *texture = - (MAP[map_x + map_y * MAP_SIZE] - 1);
     return distance - RAW_SPEED;
 }
 
@@ -261,7 +256,6 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
     double x = 0;
     double y = 0;
 
-    int8_t texture;
     double dx, dy, distance;
 
     dx = cos(*rot);
@@ -269,7 +263,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
 
     if (key_state[0]) { // go forward
         // check collisions
-        distance = get_wall(*player_x, *player_y, dx, dy, &texture);
+        distance = get_distance(*player_x, *player_y, dx, dy);
 
         if (distance > PLAYER_SPEED * fps / ONK) {
             x += dx * PLAYER_SPEED * fps / ONK;
@@ -279,7 +273,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
 
     if (key_state[2]) { // go backward
         // check collisions
-        distance = get_wall(*player_x, *player_y, -dx, -dy, &texture);
+        distance = get_distance(*player_x, *player_y, -dx, -dy);
 
         if (distance > PLAYER_SPEED * fps / ONK) {
             x -= dx * PLAYER_SPEED * fps / ONK;
@@ -288,7 +282,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
     }
 
     if (key_state[4]) { // strafe left
-        distance = get_wall(*player_x, *player_y, -dy, dx, &texture);
+        distance = get_distance(*player_x, *player_y, -dy, dx);
 
         if (distance > PLAYER_SPEED * fps / ONK) {
             x -= dy * PLAYER_SPEED * fps / ONK;
@@ -297,7 +291,7 @@ void move(double *player_x, double *player_y, double *rot, int fps) {
     }
 
     if (key_state[5]) { // strafe right
-        distance = get_wall(*player_x, *player_y, dy, -dx, &texture);
+        distance = get_distance(*player_x, *player_y, dy, -dx);
 
         if (distance > PLAYER_SPEED * fps / ONK) {
             x += dy * PLAYER_SPEED * fps / ONK;
