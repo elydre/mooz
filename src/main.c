@@ -74,7 +74,7 @@ double closer_to_int(double x, double y) {
 }
 
 int main(int argc, char **argv) {
-    double x = 5, y = 5;
+    double x = 2, y = 2;
     double rot = 0; // in radians
 
     double dx, dy, distance, rad_angle;
