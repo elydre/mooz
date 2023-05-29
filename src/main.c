@@ -155,10 +155,10 @@ int main(int argc, char **argv) {
         // draw direction
         int dir_x = RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE + cos(rot) * 5 * MINIMAP_SIZE;
         int dir_y = y * MINIMAP_SIZE + sin(rot) * 5 * MINIMAP_SIZE;
-        if (dir_x < 0) dir_x = 0;
+        if (dir_x < RESX - MINIMAP_SIZE * MAP_SIZE) dir_x = RESX - MINIMAP_SIZE * MAP_SIZE;
         if (dir_x >= RESX) dir_x = RESX - 1;
         if (dir_y < 0) dir_y = 0;
-        if (dir_y >= RESY) dir_y = RESY - 1;
+        if (dir_y >= MINIMAP_SIZE * MAP_SIZE) dir_y = MINIMAP_SIZE * MAP_SIZE - 1;
 
         draw_line(RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE, y * MINIMAP_SIZE, dir_x, dir_y, 0xFFFF00);
 
