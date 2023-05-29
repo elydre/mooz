@@ -1,16 +1,22 @@
 /*
 generate labyrinth with this format:
+
 1 1 1 1 1 1 1 1
 1 0 0 0 0 0 0 1
-1 0 1 1 1 1 0 1
-1 0 1 0 0 0 0 1
-1 0 1 0 1 1 1 1
-1 0 1 0 1 0 0 1
-1 0 0 0 0 0 1 1
+1 0 0 0 0 0 0 1
+1 0 0 1 1 1 1 1
+1 0 0 1 0 0 0 1
+1 0 0 1 0 0 0 1
+1 0 0 1 1 0 0 1
+1 0 0 0 0 0 0 1
+1 0 0 0 0 0 0 1
 1 1 1 1 1 1 1 1
 
 1 - wall
 0 - empty space
+
+corridors should be at least 2 cells wide
+
 */
 
 #include <stdio.h>
