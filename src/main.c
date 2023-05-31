@@ -19,8 +19,8 @@
 
 #define MINIMAP_SIZE 6
 
-#define FLOOR_COLOR 0xFFFF99
-#define CEILING_COLOR 0xBBBB99
+#define FLOOR_COLOR 0x11aa44
+#define CEILING_COLOR 0x88bbff
 
 // internal
 #define HALF_RESY (RESY / 2)
