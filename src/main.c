@@ -59,20 +59,12 @@ uint32_t texture_to_color(int texture);
 void move(double *player_x, double *player_y, double *rot, int fps);
 
 void get_key(int *pressed, uint8_t *key) {
-    static int i = 0;
-
     *pressed = 0;
     *key = 0;
 
-    return;
+    kalos_update_events();
 
-    if (i >= kalos_events_len) {
-        kalos_update_events();
-        i = 0;
-    }
-
-
-    for(int i = 0; kalos_events[i].is_pressed != 2; i++) {
+    for (int i = 0; kalos_events[i].is_pressed != 2; i++) {
         if (kalos_events[i].is_pressed == 3) {
             *pressed = 1;
             *key = kalos_events[i].key[0];
@@ -124,7 +116,6 @@ int main(int argc, char **argv) {
     tick_count[3] = 0;
 
     kalos_init();
-    kalos_show_window();
 
     while (1) {
         tick_count[1] = kalos_get_time_ms() - tick_count[0];

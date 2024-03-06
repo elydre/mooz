@@ -1,4 +1,6 @@
 #include "kalos.h"
+#define kalos_min(a, b) (a < b ? a : b)
+
 #ifdef __linux__
 
 #include <stdio.h>
@@ -6,21 +8,25 @@
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <X11/XKBlib.h>
+#include <X11/Xutil.h>
 #include <time.h>
 
 Display *kalos_display;
 Window kalos_window;
-Pixmap kalos_buffer;
+XImage *kalos_buffer;
+char *kalos_buffer_ptr;
 int kalos_screen;
-
-GC kalos_gc_buffer;
 
 XIM kalos_xim;
 XIC kalos_xic;
 
+GC _window_gc;
+
+
 int kalos_width = 400;
 int kalos_height = 400;
 #define kalos_window_mask (KeyPressMask | KeyReleaseMask)
+
 
 int kalos_init() {
     kalos_display = XOpenDisplay(NULL);
@@ -30,14 +36,9 @@ int kalos_init() {
     kalos_window = XCreateSimpleWindow(kalos_display, RootWindow(kalos_display, kalos_screen), 0, 0,
         kalos_width, kalos_height, 0, 0, WhitePixel(kalos_display, kalos_screen));
     XSelectInput(kalos_display, kalos_window, kalos_window_mask);
-    kalos_buffer = XCreatePixmap(kalos_display, kalos_window, kalos_width, kalos_height, DefaultDepth(kalos_display, 0));
-    kalos_xim = XOpenIM(kalos_display, 0, 0, 0);
-    kalos_xic = XCreateIC(kalos_xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing, NULL);
-    kalos_gc_buffer = XCreateGC(kalos_display, kalos_buffer, 0, NULL);
-    return KALOS_INIT_SUCCESS;
-}
-
-void kalos_show_window() {
+    kalos_buffer_ptr = malloc(kalos_width*kalos_height*4);
+    kalos_buffer = XCreateImage(kalos_display, DefaultVisual(kalos_display, DefaultScreen(kalos_display)), DefaultDepth(kalos_display, DefaultScreen(kalos_display)), ZPixmap, 0, kalos_buffer_ptr, kalos_width, kalos_height, 32, 0);
+    // display windows
     XSelectInput(kalos_display, kalos_window, StructureNotifyMask);
     XMapWindow(kalos_display, kalos_window);
     XEvent e;
@@ -46,114 +47,125 @@ void kalos_show_window() {
     } while (e.type != MapNotify);
     XSelectInput(kalos_display, kalos_window, kalos_window_mask);
     XFlush(kalos_display);
-
+    _window_gc = XCreateGC(kalos_display, kalos_window, 0, NULL);
+    return KALOS_INIT_SUCCESS;
 }
 
 void kalos_update_window() {
-    GC gc = XCreateGC(kalos_display, kalos_window, 0, NULL);
-    XCopyArea(kalos_display, kalos_buffer, kalos_window, gc, 0, 0, kalos_width, kalos_height, 0, 0);
-    XFreeGC(kalos_display, gc);
-    XFlush(kalos_display);
+    XPutImage(kalos_display, kalos_window, _window_gc, kalos_buffer, 0, 0, 0, 0, kalos_width, kalos_height);
 }
 
 void kalos_set_pixel(int x, int y, unsigned char r, unsigned char g, unsigned char b) {
-        XColor color;
-    color.red = r * 257;    // Scale the color values
-    color.green = g * 257;
-    color.blue = b * 257;
-    color.flags = DoRed | DoGreen | DoBlue;
-
-    if (!XAllocColor(kalos_display, DefaultColormap(kalos_display, kalos_screen), &color)) {
-        return;
-    }
-    XSetForeground(kalos_display, kalos_gc_buffer, color.pixel);
-    XDrawPoint(kalos_display, kalos_buffer, kalos_gc_buffer, x, y);
+    if (x >= kalos_width || y >= kalos_height) return ;
+    u_int32_t *ptr = (u_int32_t *)kalos_buffer_ptr;
+    ptr[x+ y*kalos_width] = r<<16 | g << 8 | b;
 }
 
-void kalos_fill_window(unsigned char r, unsigned char g, unsigned char b) {
-    XColor color;
-    color.red = r * 257;
-    color.green = g * 257;
-    color.blue = b * 257;
-    color.flags = DoRed | DoGreen | DoBlue;
 
-    if (!XAllocColor(kalos_display, DefaultColormap(kalos_display, kalos_screen), &color)) {
-        XFreeGC(kalos_display, kalos_gc_buffer);
-        return ;
+void kalos_fill_window(unsigned char r, unsigned char g, unsigned char b) {
+    long int col = r<<16 | g << 8 | b;
+    u_int32_t *ptr = (u_int32_t *)kalos_buffer_ptr;
+    for (int i = 0; i < kalos_width; i++) {
+        for (int k = 0; k < kalos_height; k++) {
+            ptr[i+ k*kalos_width] = col;
+        }
     }
-    XSetForeground(kalos_display, kalos_gc_buffer, color.pixel);
-    XFillRectangle(kalos_display, kalos_buffer, kalos_gc_buffer, 0, 0, kalos_width, kalos_height);
 }
 
 void kalos_fill_rect(int x, int y, int h, int w, unsigned char r, unsigned char g, unsigned char b) {
-    XColor color;
-    color.red = r * 257;
-    color.green = g * 257;
-    color.blue = b * 257;
-    color.flags = DoRed | DoGreen | DoBlue;
-
-    if (!XAllocColor(kalos_display, DefaultColormap(kalos_display, kalos_screen), &color)) {
-        XFreeGC(kalos_display, kalos_gc_buffer);
-        return ;
+    long int col = r<<16 | g << 8 | b;
+    u_int32_t *ptr = (u_int32_t *)kalos_buffer_ptr;
+    int w_end = kalos_min(w, kalos_width - 1);
+    int h_end = kalos_min(h, kalos_height - 1);
+    for (int i = x; i < w_end; i++) {
+        for (int k = y; k < h_end; k++) {
+            ptr[i + k*kalos_width] = col;
+        }
     }
-    XSetForeground(kalos_display, kalos_gc_buffer, color.pixel);
-    XFillRectangle(kalos_display, kalos_buffer, kalos_gc_buffer, x, y, w, h);
 }
 
-void kalos_draw_line(int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b) {
-    XColor color;
-    color.red = r * 257;
-    color.green = g * 257;
-    color.blue = b * 257;
-    color.flags = DoRed | DoGreen | DoBlue;
+void kalos_draw_line(int x0, int y0, int x1, int y1, unsigned char r, unsigned char g, unsigned char b) {
+    
+    x0 = kalos_min(x0, kalos_width - 1);
+    x1 = kalos_min(x1, kalos_width - 1);
+    y0 = kalos_min(y0, kalos_width - 1);
+    y1 = kalos_min(y1, kalos_width - 1);
 
-    if (!XAllocColor(kalos_display, DefaultColormap(kalos_display, kalos_screen), &color)) {
-        XFreeGC(kalos_display, kalos_gc_buffer);
-        return ;
+    long int color = r<<16 | g << 8 | b;
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+    int D = 2*dy - dx;
+    int y = y0;
+
+    if (x0 < x1) {
+        for (int x = x0; x < x1; x++) {
+            XPutPixel(kalos_buffer, x, y, color);
+            if (D > 0) {
+                y = y + 1;
+                D = D - 2*dx;
+            }
+            D = D + 2*dy;
+        }
     }
-    XSetForeground(kalos_display, kalos_gc_buffer, color.pixel);
-    XDrawLine(kalos_display, kalos_buffer, kalos_gc_buffer, x1, y1, x2, y2);
+    else {
+        for (int x = x1 - 1; x >= x0; x--) {
+            XPutPixel(kalos_buffer, x, y, color);
+            if (D > 0) {
+                y = y + 1;
+                D = D - 2*dx;
+            }
+            D = D + 2*dy;
+        }
+    }
+        
 }
 
 void kalos_draw_disk(int x, int y, int radius, unsigned char r, unsigned char g, unsigned char b) {
-    XColor color;
-    color.red = r * 257;
-    color.green = g * 257;
-    color.blue = b * 257;
-    color.flags = DoRed | DoGreen | DoBlue;
-
-    if (!XAllocColor(kalos_display, DefaultColormap(kalos_display, kalos_screen), &color)) {
-        XFreeGC(kalos_display, kalos_gc_buffer);
-        return ;
-    }
-    XSetForeground(kalos_display, kalos_gc_buffer, color.pixel);
-    XFillArc(kalos_display, kalos_buffer, kalos_gc_buffer, x - radius, y - radius, 2 * radius, 2 * radius, 0, 360 * 64);
+    //XColor color;
+    //color.red = r * 257;
+    //color.green = g * 257;
+    //color.blue = b * 257;
+    //color.flags = DoRed | DoGreen | DoBlue;
+//
+    //if (!XAllocColor(kalos_display, DefaultColormap(kalos_display, kalos_screen), &color)) {
+    //    XFreeGC(kalos_display, kalos_gc_buffer);
+    //    return ;
+    //}
+    //XSetForeground(kalos_display, kalos_gc_buffer, color.pixel);
+    //XFillArc(kalos_display, kalos_buffer, kalos_gc_buffer, x - radius, y - radius, 2 * radius, 2 * radius, 0, 360 * 64);
 }
 
 void kalos_draw_circle(int x, int y, int radius, unsigned char r, unsigned char g, unsigned char b) {
-    XColor color;
-    color.red = r * 257;
-    color.green = g * 257;
-    color.blue = b * 257;
-    color.flags = DoRed | DoGreen | DoBlue;
-
-    if (!XAllocColor(kalos_display, DefaultColormap(kalos_display, kalos_screen), &color)) {
-        XFreeGC(kalos_display, kalos_gc_buffer);
-        return ;
-    }
-    XSetForeground(kalos_display, kalos_gc_buffer, color.pixel);
-    XDrawArc(kalos_display, kalos_buffer, kalos_gc_buffer, x - radius, y - radius, 2 * radius, 2 * radius, 0, 360 * 64);
+    //XColor color;
+    //color.red = r * 257;
+    //color.green = g * 257;
+    //color.blue = b * 257;
+    //color.flags = DoRed | DoGreen | DoBlue;
+//
+    //if (!XAllocColor(kalos_display, DefaultColormap(kalos_display, kalos_screen), &color)) {
+    //    XFreeGC(kalos_display, kalos_gc_buffer);
+    //    return ;
+    //}
+    //XSetForeground(kalos_display, kalos_gc_buffer, color.pixel);
+    //XDrawArc(kalos_display, kalos_buffer, kalos_gc_buffer, x - radius, y - radius, 2 * radius, 2 * radius, 0, 360 * 64);
 }
 
 void __kalos_handle_window_resize(int new_width, int new_height) {
+
     int old_width = kalos_width;
     int old_height = kalos_height;
     kalos_width = new_width;
     kalos_height = new_height;
-    Pixmap new_buffer = XCreatePixmap(kalos_display, kalos_window, kalos_width, kalos_height, DefaultDepth(kalos_display, 0));
-    XCopyArea(kalos_display, kalos_buffer, new_buffer, kalos_gc_buffer, 0, 0, old_width, old_height, 0, 0);
-    XFreePixmap(kalos_display, kalos_buffer);
+    char *new_kalos_buffer_ptr = malloc(kalos_width * kalos_height * 4);
+    XImage *new_buffer = XCreateImage(kalos_display, DefaultVisual(kalos_display, DefaultScreen(kalos_display)), DefaultDepth(kalos_display, DefaultScreen(kalos_display)), ZPixmap, 0, new_kalos_buffer_ptr, kalos_width, kalos_height, 32, 0);
+    for (int x = 0; x < old_width; x++) {
+        for (int y = 0; y < old_height; y++) {
+            new_kalos_buffer_ptr[x + y *kalos_width] = kalos_buffer_ptr[x + y*old_width];
+        }
+    }
+    XDestroyImage(kalos_buffer);
     kalos_buffer = new_buffer;
+    kalos_buffer_ptr = new_kalos_buffer_ptr;
 }
 
 int kalos_get_height() {
@@ -163,7 +175,11 @@ int kalos_get_width() {
     return kalos_width;
 }
 
+void kalos_set_width() {
+}
+
 void kalos_update_events() {
+    kalos_events_len = 0;
     XEvent event;
 
     XWindowAttributes windowAttributes;
@@ -230,12 +246,13 @@ void kalos_update_events() {
 }
 
 void kalos_end() {
-    XFreePixmap(kalos_display, kalos_buffer);
+    XDestroyImage(kalos_buffer);
+
     if (kalos_xic != NULL)
         XDestroyIC(kalos_xic);
     if (kalos_xim != NULL)
         XCloseIM(kalos_xim);
-    XFreeGC(kalos_display, kalos_gc_buffer);
+    XFreeGC(kalos_display, _window_gc);
     XDestroyWindow(kalos_display, kalos_window);
     XCloseDisplay(kalos_display);
 }
@@ -246,11 +263,6 @@ long long int kalos_get_time_ms() {
     long long milliseconds = te.tv_sec * 1000LL + te.tv_nsec / 1000000LL;
     return milliseconds;
 }
-
-//void kalos_sleep_ms(long long int x) {
-//    long long int end = x + kalos_get_time_ms();
-//    while (kalos_get_time_ms() < end) {;}
-//}
 
 
 #endif

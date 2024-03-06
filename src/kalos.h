@@ -2,7 +2,7 @@
 #define KALOS_H
 
 #if !defined(__WIN32) && !defined(__linux__)
-	#define KALOS_UNSUPPORTED
+    #define KALOS_UNSUPPORTED
 #endif
 
 #define KALOS_INIT_FAIL 1
@@ -21,10 +21,10 @@
 #define KEY_SHIFT 11
 
 typedef struct kalos_event_s{
-	char key[5];
-	char is_pressed; // 0 :key_released, 1 :key_pressed, 2 :end_of_events
-	// 3 :special_key_pressed (key[0] == key)(esc, shift...)
-	// 4 :special_key_released (key[0] == key)(esc, shift...)
+    char key[5];
+    char is_pressed; // 0 :key_released, 1 :key_pressed, 2 :end_of_events
+    // 3 :special_key_pressed (key[0] == key)(esc, shift...)
+    // 4 :special_key_released (key[0] == key)(esc, shift...)
 }kalos_event_t;
 
 #define kalos_events_max_len 150
