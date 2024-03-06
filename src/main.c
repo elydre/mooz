@@ -1,4 +1,5 @@
 #include "header.h"
+#include "kalos.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -46,8 +47,6 @@ int8_t MAP[] = {
     1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1
 };
 
-uint32_t *gui_screen_buffer;
-
 int y_offset = 0;
 
 uint8_t key_state[8];
@@ -59,6 +58,36 @@ uint32_t texture_to_color(int texture);
 
 void move(double *player_x, double *player_y, double *rot, int fps);
 
+void get_key(int *pressed, uint8_t *key) {
+    static int i = 0;
+
+    *pressed = 0;
+    *key = 0;
+
+    return;
+
+    if (i >= kalos_events_len) {
+        kalos_update_events();
+        i = 0;
+    }
+
+
+    for(int i = 0; kalos_events[i].is_pressed != 2; i++) {
+        if (kalos_events[i].is_pressed == 3) {
+            *pressed = 1;
+            *key = kalos_events[i].key[0];
+            i++;
+            return;
+        }
+
+        if (kalos_events[i].is_pressed == 4) {
+            *pressed = 0;
+            *key = kalos_events[i].key[0];
+            i++;
+            return;
+        }
+    }
+}
 
 double closer_to_int(double x, double y) {
     double fx = float_part(x);
@@ -90,23 +119,22 @@ int main(int argc, char **argv) {
     textures[2] = open_bmp("img/bricks.bmp");
 
 
-    gui_screen_buffer = malloc(RESX * RESY * sizeof(uint32_t));
-
     int tick_count[4];
-    tick_count[0] = get_ticks();
+    tick_count[0] = kalos_get_time_ms();
     tick_count[3] = 0;
 
-    gui_init();
+    kalos_init();
+    kalos_show_window();
 
     while (1) {
-        tick_count[1] = get_ticks() - tick_count[0];
+        tick_count[1] = kalos_get_time_ms() - tick_count[0];
         if (tick_count[1] == 0) {
             printf("sleeping\n");
-            sleep_ms(1);
+            kalos_sleep_ms(1);
             continue;
         }
 
-        tick_count[0] = get_ticks();
+        tick_count[0] = kalos_get_time_ms();
 
         // draw walls
         for (int i = 0; i < RESX; i++) {            
@@ -146,12 +174,13 @@ int main(int argc, char **argv) {
         // draw minimap
         for (int i = 0; i < MAP_SIZE; i++) {
             for (int j = 0; j < MAP_SIZE; j++) {
-                draw_rect(RESX - MINIMAP_SIZE * MAP_SIZE + i * MINIMAP_SIZE, j * MINIMAP_SIZE, MINIMAP_SIZE, MINIMAP_SIZE, texture_to_color(MAP[i + j * MAP_SIZE]));
+                uint32_t c = texture_to_color(MAP[i + j * MAP_SIZE]);
+                kalos_fill_rect(RESX - MINIMAP_SIZE * MAP_SIZE + i * MINIMAP_SIZE, j * MINIMAP_SIZE, MINIMAP_SIZE, MINIMAP_SIZE, (c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
             }
         }
 
         // draw player
-        draw_rect(RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE - MINIMAP_SIZE / 2, y * MINIMAP_SIZE - MINIMAP_SIZE / 2, MINIMAP_SIZE, MINIMAP_SIZE, 0xFFFF00);
+        kalos_fill_rect(RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE - MINIMAP_SIZE / 2, y * MINIMAP_SIZE - MINIMAP_SIZE / 2, MINIMAP_SIZE, MINIMAP_SIZE, 0xFF, 0xFF, 0xFF);
         // draw direction
         int dir_x = RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE + cos(rot) * 5 * MINIMAP_SIZE;
         int dir_y = y * MINIMAP_SIZE + sin(rot) * 5 * MINIMAP_SIZE;
@@ -160,26 +189,25 @@ int main(int argc, char **argv) {
         if (dir_y < 0) dir_y = 0;
         if (dir_y >= MINIMAP_SIZE * MAP_SIZE) dir_y = MINIMAP_SIZE * MAP_SIZE - 1;
 
-        draw_line(RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE, y * MINIMAP_SIZE, dir_x, dir_y, 0xFFFF00);
+        kalos_draw_line(RESX - MINIMAP_SIZE * MAP_SIZE + x * MINIMAP_SIZE, y * MINIMAP_SIZE, dir_x, dir_y, 0xFF, 0xFF, 0x00);
 
         get_key(&pressed, &key);
 
-
-        if (key == 122) {           // z
+        if (key == KEY_ARROW_UP) {           // z
             key_state[0] = pressed;
-        } else if (key == 113) {    // q
+        } else if (key == KEY_ARROW_LEFT) {    // q
             key_state[1] = pressed;
-        } else if (key == 115) {    // s
+        } else if (key == KEY_ARROW_DOWN) {    // s
             key_state[2] = pressed;
-        } else if (key == 100) {    // d
+        } else if (key == KEY_ARROW_RIGHT) {    // d
             key_state[3] = pressed;
-        } else if (key == 97) {     // a
+        } else if (key == KEY_CTRL_L) {     // a
             key_state[4] = pressed;
-        } else if (key == 101) {    // e
+        } else if (key == KEY_CTRL_R) {    // e
             key_state[5] = pressed;
-        } else if (key == 32) {     // space
+        } else if (key == KEY_ENTER) {     // space
             key_state[6] = pressed;
-        } else if (key == 225) {    // shift
+        } else if (key == KEY_SHIFT) {    // shift
             key_state[7] = pressed;
         }
 
@@ -201,9 +229,9 @@ int main(int argc, char **argv) {
                 rot, x, y
         );
 
-        tick_count[2] = get_ticks();
-        gui_draw_frame();
-        tick_count[3] = get_ticks() - tick_count[2];
+        tick_count[2] = kalos_get_time_ms();
+        kalos_update_window();
+        tick_count[3] = kalos_get_time_ms() - tick_count[2];
     }
 
     return 0;
